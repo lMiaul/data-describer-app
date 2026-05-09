@@ -74,30 +74,32 @@ if modo == "Analizar Nuevo CSV":
             muestra = df.head(3).to_markdown() 
             
             prompt = f"""
-            Eres un Lead Data Scientist presentando un dataset a tu equipo técnico. Tienes solo 30 segundos para captar su atención.
+            Eres un Lead Data Scientist presentando una evaluación técnica de un dataset a tu equipo.
             Analiza el siguiente dataset basándote en esta muestra:
             - Columnas: {columnas}
             - Tipos de datos: {info_tipos}
             - Muestra de datos:
             {muestra}
 
-            Genera un reporte ultra-conciso y altamente escaneable. DEBES usar EXCLUSIVAMENTE el siguiente formato exacto (respeta los emojis y las negritas):
+            Genera un reporte estructurado y analítico, manteniendo la facilidad de lectura mediante viñetas. Utiliza EXCLUSIVAMENTE el siguiente formato exacto:
 
-            🎯 **Veredicto Rápido:** [Una sola oración contundente describiendo la naturaleza y posible objetivo predictivo del dataset].
+            🎯 **Naturaleza del Problema:**
+            - [Describe de qué trata el dataset y define claramente el objetivo predictivo].
 
-            ⚠️ **Alertas de Calidad (Data Prep):**
-            - 🚩 [Problema 1 en máximo 10 palabras, ej. categóricas a codificar].
-            - 🚩 [Problema 2 en máximo 10 palabras, ej. posible desbalanceo].
+            ⚠️ **Alertas de Calidad y Preprocesamiento:**
+            - 🚩 **[Nombre de la variable o problema]:** [Justifica por qué es un riesgo y propón cómo abordarlo (ej. técnica de imputación, manejo de desbalanceo, codificación)].
+            - 🚩 **[Nombre de la variable o problema]:** [Analiza aspectos como distribuciones sesgadas, alta cardinalidad o multicolinealidad, y la solución propuesta].
 
-            🧠 **Estrategia de Modelado:**
-            - **Modelo ideal:** [Recomienda ensambles robustos como XGBoost o Random Forest si el caso lo amerita].
-            - **Justificación:** [Razón puramente técnica en una sola línea].
+            🧠 **Estrategia de Modelado (Baseline vs. Avanzado):**
+            - **Modelo de Línea Base:** [Sugiere un modelo simple e interpretable] para establecer un punto de referencia de rendimiento inicial.
+            - **Modelo Principal:** [Recomienda ensambles basados en árboles como XGBoost o Random Forest].
+            - **Justificación Técnica:** [Explica detalladamente el "por qué". Justifica cómo el modelo principal maneja mejor las no linealidades, la dimensionalidad o las interacciones complejas de este dataset específico frente al baseline].
 
-            📏 **Auditoría y Métricas:**
-            - **Optimizar para:** [Métrica clave sugerida, ej. F1-score, AUC-ROC].
-            - **Explicabilidad (XAI):** [Sugiere cómo auditar el modelo usando SHAP o LIME en una sola línea].
+            📏 **Auditoría Técnica y Evaluación:**
+            - **Métricas:** [Sugiere la métrica principal (ej. F1-score, AUC-ROC) y explica por qué se ajusta a la penalización de errores de este caso particular].
+            - **Explicabilidad (XAI):** [Detalla cómo integrar herramientas como SHAP o LIME para realizar una auditoría técnica del modelo, explicando qué valor aportará entender las predicciones a nivel local y global en este contexto].
 
-            REGLA ESTRICTA: Prohibido usar párrafos largos. Prohibido incluir saludos, introducciones o conclusiones genéricas. Ve directo al grano.
+            REGLA: Mantén un tono riguroso y argumentativo. Explica siempre el razonamiento detrás de tus elecciones en un máximo de dos o tres oraciones por viñeta. No uses introducciones ni conclusiones genéricas.
             """
             
             with st.spinner("Analizando la estructura de los datos con IA..."):
