@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import pymongo
+from datetime import datetime
 from google import genai
 
 # =======================
@@ -7,80 +9,136 @@ from google import genai
 # =======================
 st.set_page_config(page_title="ML Data Describer", page_icon="📊", layout="wide")
 st.title("📊 Data Describer para Machine Learning")
-st.write("Sube un CSV para obtener un análisis rápido de su estructura, posibles problemas y recomendaciones de modelado.")
+
+# =======================
+# CONEXIÓN A MONGODB
+# =======================
+@st.cache_resource
+def init_mongo_connection():
+    try:
+        # Extraer URI desde los secretos
+        uri = st.secrets["MONGODB_URI"]
+        client = pymongo.MongoClient(uri)
+        # Seleccionamos la base de datos y la colección
+        db = client["ml_describer_db"]
+        return db["analisis_historial"]
+    except Exception as e:
+        st.error(f"❌ Error al conectar con MongoDB: {e}")
+        st.stop()
+
+coleccion_historial = init_mongo_connection()
 
 # =======================
 # BARRA LATERAL (SIDEBAR)
 # =======================
 with st.sidebar:
     st.header("🔑 Configuración")
-    # Extraer la API Key de los secretos (o pedirla si prefieres fallback manual)
     try:
         api_key = st.secrets["GOOGLE_API_KEY"]
-        st.success("API Key cargada correctamente desde Secrets.")
+        st.success("API Key e infraestructura cargadas correctamente.")
     except KeyError:
-        st.error("❌ Faltan las variables de entorno. Configura GOOGLE_API_KEY.")
+        st.error("❌ Faltan las variables de entorno (GOOGLE_API_KEY).")
         st.stop()
     
     st.divider()
     
-    st.header("📂 Datasets de prueba recomendados")
-    st.write("¿No tienes un archivo a la mano? Descarga uno de los datasets para principiantes desde el siguiente enlace de Kaggle:")
-    st.markdown("[🔗 Kaggle: Beginner Datasets](https://www.kaggle.com/datasets/ahmettezcantekin/beginner-datasets)")
+    # Navegación estratégica entre Nuevo Análisis y el Historial
+    st.header("Navegación")
+    modo = st.radio("Elige una acción:", ["Analizar Nuevo CSV", "Ver Historial de Análisis"])
     
-    st.write("**Sugerencias interesantes del repositorio:**")
-    st.markdown("""
-    - 🏦 **`bank.csv`**: Ideal para predecir si un cliente suscribirá un depósito (Clasificación).
-    - 🏠 **`house.csv`**: Clásico para predecir precios de viviendas (Regresión).
-    - 🩺 **`diabetes.csv`**: Bueno para evaluar métricas de salud y falsos negativos.
-    - 🛒 **`amazon.csv`**: Para explorar cómo el modelo sugiere procesar texto o NLP.
-    """)
-    st.info("Descarga cualquier archivo CSV del enlace anterior y súbelo en el panel principal para probar el motor de IA.")
+    st.divider()
+    st.write("**Datasets de prueba:** [Kaggle Beginner Datasets](https://www.kaggle.com/datasets/ahmettezcantekin/beginner-datasets)")
 
 # =======================
-# CARGA DE DATOS PRINCIPAL
+# LÓGICA PRINCIPAL
 # =======================
-uploaded_file = st.file_uploader("Sube tu archivo CSV", type=["csv"])
 
-if uploaded_file is not None:
-    # Leer datos
-    df = pd.read_csv(uploaded_file)
+if modo == "Analizar Nuevo CSV":
+    st.write("Sube un CSV para obtener un análisis rápido de su estructura y recomendaciones de modelado.")
     
-    st.subheader("Vista previa de los datos")
-    st.dataframe(df.head())
+    uploaded_file = st.file_uploader("Sube tu archivo CSV", type=["csv"])
+
+    if uploaded_file is not None:
+        nombre_archivo = uploaded_file.name
+        df = pd.read_csv(uploaded_file)
+        
+        st.subheader("Vista previa de los datos")
+        st.dataframe(df.head())
+        
+        dimensiones = f"{df.shape[0]} filas x {df.shape[1]} columnas"
+        st.write(f"**Dimensiones:** {dimensiones}")
+
+        if st.button("Generar Análisis de ML"):
+            columnas = df.columns.tolist()
+            info_tipos = df.dtypes.astype(str).to_dict()
+            muestra = df.head(3).to_markdown() 
+            
+            prompt = f"""
+            Eres un experto en Data Science. Analiza el siguiente dataset basándote en esta muestra:
+            - Columnas: {columnas}
+            - Tipos de datos: {info_tipos}
+            - Muestra de datos:
+            {muestra}
+
+            Proporciona un análisis estructurado que incluya:
+            1. **Resumen:** ¿De qué parece tratar este dataset?
+            2. **Calidad de Datos:** Identifica posibles problemas (ej. necesidad de limpieza, variables categóricas, clases desbalanceadas).
+            3. **Sugerencias de Modelado:** Recomienda enfoques predictivos (ej. XGBoost, Random Forest) y justifica por qué.
+            4. **Métricas y Auditoría:** Sugiere qué métricas usar e indica si herramientas de explicabilidad (XAI) como SHAP o LIME serían valiosas.
+            """
+            
+            with st.spinner("Analizando la estructura de los datos con IA..."):
+                try:
+                    client = genai.Client(api_key=api_key)
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=prompt
+                    )
+                    texto_respuesta = response.text
+                    
+                    st.markdown("---")
+                    st.markdown(texto_respuesta)
+                    
+                    # Guardar en MongoDB
+                    registro = {
+                        "archivo": nombre_archivo,
+                        "dimensiones": dimensiones,
+                        "fecha": datetime.now(),
+                        "analisis": texto_respuesta
+                    }
+                    coleccion_historial.insert_one(registro)
+                    st.toast("✅ Análisis guardado en el historial de MongoDB", icon="💾")
+                    
+                except Exception as e:
+                    st.error(f"Error durante el análisis: {e}")
+
+elif modo == "Ver Historial de Análisis":
+    st.header("🗄️ Historial de Archivos Analizados")
     
-    st.write(f"**Dimensiones:** {df.shape[0]} filas x {df.shape[1]} columnas")
-
-    # Botón para accionar la IA
-    if st.button("Generar Análisis de ML"):
+    # Recuperar documentos ordenados por fecha (más recientes primero)
+    historial_docs = list(coleccion_historial.find().sort("fecha", -1))
+    
+    if not historial_docs:
+        st.info("Aún no hay análisis guardados en la base de datos.")
+    else:
+        # Crear un diccionario para el selectbox para mostrar el nombre y la fecha
+        opciones_historial = {
+            str(doc["_id"]): f"📄 {doc['archivo']} - {doc['fecha'].strftime('%Y-%m-%d %H:%M')}" 
+            for doc in historial_docs
+        }
         
-        # Preparar un resumen del dataset para enviarlo a Gemini
-        columnas = df.columns.tolist()
-        info_tipos = df.dtypes.astype(str).to_dict()
-        muestra = df.head(3).to_markdown() # Formateo en Markdown usando tabulate
+        seleccion_id = st.selectbox(
+            "Selecciona un análisis previo:", 
+            options=list(opciones_historial.keys()), 
+            format_func=lambda x: opciones_historial[x]
+        )
         
-        prompt = f"""
-        Eres un experto en Data Science. Analiza el siguiente dataset basándote en esta muestra:
-        - Columnas: {columnas}
-        - Tipos de datos: {info_tipos}
-        - Muestra de datos:
-        {muestra}
-
-        Proporciona un análisis estructurado que incluya:
-        1. **Resumen:** ¿De qué parece tratar este dataset?
-        2. **Calidad de Datos:** Identifica posibles problemas (ej. necesidad de limpieza, variables categóricas a codificar, sospecha de clases desbalanceadas).
-        3. **Sugerencias de Modelado:** Recomienda enfoques predictivos. Si aplica, sugiere modelos potentes como ensambles (XGBoost, Random Forest) y justifica por qué.
-        4. **Métricas y Auditoría:** Sugiere qué métricas usar (ej. F1-score, AUC-ROC) e indica si herramientas de explicabilidad (XAI) como SHAP o LIME serían valiosas para este caso de uso.
-        """
+        # Encontrar el documento seleccionado
+        doc_seleccionado = next(doc for doc in historial_docs if str(doc["_id"]) == seleccion_id)
         
-        with st.spinner("Analizando la estructura de los datos con IA..."):
-            try:
-                client = genai.Client(api_key=api_key)
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt
-                )
-                st.markdown("---")
-                st.markdown(response.text)
-            except Exception as e:
-                st.error(f"Error al conectar con la API: {e}")
+        st.markdown("---")
+        st.subheader(f"Resumen de: {doc_seleccionado['archivo']}")
+        st.write(f"**Dimensiones registradas:** {doc_seleccionado.get('dimensiones', 'N/A')}")
+        
+        with st.container():
+            st.markdown(doc_seleccionado["analisis"])
