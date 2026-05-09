@@ -74,17 +74,30 @@ if modo == "Analizar Nuevo CSV":
             muestra = df.head(3).to_markdown() 
             
             prompt = f"""
-            Eres un experto en Data Science. Analiza el siguiente dataset basándote en esta muestra:
+            Eres un Lead Data Scientist presentando un dataset a tu equipo técnico. Tienes solo 30 segundos para captar su atención.
+            Analiza el siguiente dataset basándote en esta muestra:
             - Columnas: {columnas}
             - Tipos de datos: {info_tipos}
             - Muestra de datos:
             {muestra}
 
-            Proporciona un análisis estructurado que incluya:
-            1. **Resumen:** ¿De qué parece tratar este dataset?
-            2. **Calidad de Datos:** Identifica posibles problemas (ej. necesidad de limpieza, variables categóricas, clases desbalanceadas).
-            3. **Sugerencias de Modelado:** Recomienda enfoques predictivos (ej. XGBoost, Random Forest) y justifica por qué.
-            4. **Métricas y Auditoría:** Sugiere qué métricas usar e indica si herramientas de explicabilidad (XAI) como SHAP o LIME serían valiosas.
+            Genera un reporte ultra-conciso y altamente escaneable. DEBES usar EXCLUSIVAMENTE el siguiente formato exacto (respeta los emojis y las negritas):
+
+            🎯 **Veredicto Rápido:** [Una sola oración contundente describiendo la naturaleza y posible objetivo predictivo del dataset].
+
+            ⚠️ **Alertas de Calidad (Data Prep):**
+            - 🚩 [Problema 1 en máximo 10 palabras, ej. categóricas a codificar].
+            - 🚩 [Problema 2 en máximo 10 palabras, ej. posible desbalanceo].
+
+            🧠 **Estrategia de Modelado:**
+            - **Modelo ideal:** [Recomienda ensambles robustos como XGBoost o Random Forest si el caso lo amerita].
+            - **Justificación:** [Razón puramente técnica en una sola línea].
+
+            📏 **Auditoría y Métricas:**
+            - **Optimizar para:** [Métrica clave sugerida, ej. F1-score, AUC-ROC].
+            - **Explicabilidad (XAI):** [Sugiere cómo auditar el modelo usando SHAP o LIME en una sola línea].
+
+            REGLA ESTRICTA: Prohibido usar párrafos largos. Prohibido incluir saludos, introducciones o conclusiones genéricas. Ve directo al grano.
             """
             
             with st.spinner("Analizando la estructura de los datos con IA..."):
