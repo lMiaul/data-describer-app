@@ -9,15 +9,36 @@ st.set_page_config(page_title="ML Data Describer", page_icon="📊", layout="wid
 st.title("📊 Data Describer para Machine Learning")
 st.write("Sube un CSV para obtener un análisis rápido de su estructura, posibles problemas y recomendaciones de modelado.")
 
-# Extraer la API Key de los secretos de Streamlit
-try:
-    api_key = st.secrets["GOOGLE_API_KEY"]
-except KeyError:
-    st.error("❌ Faltan las variables de entorno. Por favor, configura GOOGLE_API_KEY en tus secretos (secrets.toml o en la nube).")
-    st.stop()
+# =======================
+# BARRA LATERAL (SIDEBAR)
+# =======================
+with st.sidebar:
+    st.header("🔑 Configuración")
+    # Extraer la API Key de los secretos (o pedirla si prefieres fallback manual)
+    try:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+        st.success("API Key cargada correctamente desde Secrets.")
+    except KeyError:
+        st.error("❌ Faltan las variables de entorno. Configura GOOGLE_API_KEY.")
+        st.stop()
+    
+    st.divider()
+    
+    st.header("📂 Datasets de prueba recomendados")
+    st.write("¿No tienes un archivo a la mano? Descarga uno de los datasets para principiantes desde el siguiente enlace de Kaggle:")
+    st.markdown("[🔗 Kaggle: Beginner Datasets](https://www.kaggle.com/datasets/ahmettezcantekin/beginner-datasets)")
+    
+    st.write("**Sugerencias interesantes del repositorio:**")
+    st.markdown("""
+    - 🏦 **`bank.csv`**: Ideal para predecir si un cliente suscribirá un depósito (Clasificación).
+    - 🏠 **`house.csv`**: Clásico para predecir precios de viviendas (Regresión).
+    - 🩺 **`diabetes.csv`**: Bueno para evaluar métricas de salud y falsos negativos.
+    - 🛒 **`amazon.csv`**: Para explorar cómo el modelo sugiere procesar texto o NLP.
+    """)
+    st.info("Descarga cualquier archivo CSV del enlace anterior y súbelo en el panel principal para probar el motor de IA.")
 
 # =======================
-# CARGA DE DATOS
+# CARGA DE DATOS PRINCIPAL
 # =======================
 uploaded_file = st.file_uploader("Sube tu archivo CSV", type=["csv"])
 
@@ -36,7 +57,7 @@ if uploaded_file is not None:
         # Preparar un resumen del dataset para enviarlo a Gemini
         columnas = df.columns.tolist()
         info_tipos = df.dtypes.astype(str).to_dict()
-        muestra = df.head(3).to_markdown() # Tomamos solo 3 filas para no saturar el contexto
+        muestra = df.head(3).to_markdown() # Formateo en Markdown usando tabulate
         
         prompt = f"""
         Eres un experto en Data Science. Analiza el siguiente dataset basándote en esta muestra:
@@ -52,7 +73,7 @@ if uploaded_file is not None:
         4. **Métricas y Auditoría:** Sugiere qué métricas usar (ej. F1-score, AUC-ROC) e indica si herramientas de explicabilidad (XAI) como SHAP o LIME serían valiosas para este caso de uso.
         """
         
-        with st.spinner("Analizando la estructura de los datos..."):
+        with st.spinner("Analizando la estructura de los datos con IA..."):
             try:
                 client = genai.Client(api_key=api_key)
                 response = client.models.generate_content(
