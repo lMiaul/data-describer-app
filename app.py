@@ -17,7 +17,7 @@ st.title("📊 Data Describer para Machine Learning")
 def init_mongo_connection():
     try:
         # Extraer URI desde los secretos
-        uri = st.secrets["MONGODB_URI"]
+        uri = st.secrets["mongodb_uri"]
         client = pymongo.MongoClient(uri)
         # Seleccionamos la base de datos y la colección
         db = client["ml_describer_db"]
@@ -34,7 +34,7 @@ coleccion_historial = init_mongo_connection()
 with st.sidebar:
     st.header("🔑 Configuración")
     try:
-        api_key = st.secrets["GOOGLE_API_KEY"]
+        api_key = st.secrets["google_api_key"]
         st.success("API Key e infraestructura cargadas correctamente.")
     except KeyError:
         st.error("❌ Faltan las variables de entorno (GOOGLE_API_KEY).")
