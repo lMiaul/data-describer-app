@@ -3,6 +3,7 @@ import pandas as pd
 import pymongo
 from datetime import datetime
 from google import genai
+import os
 
 # =======================
 # CONFIGURACIÓN
