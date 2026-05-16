@@ -16,12 +16,21 @@ st.title("📊 Data Describer para Machine Learning")
 @st.cache_resource
 def init_mongo_connection():
     try:
-        # Extraer URI desde los secretos
-        uri = st.secrets["mongodb_uri"]
+        # Intenta leer de Streamlit, si falla va directo al entorno del sistema
+        try:
+            uri = st.secrets["mongodb_uri"]
+        except Exception:
+            uri = os.environ.get("STREAMLIT_MONGODB_URI")
+
+        # Verificación de seguridad si ambas opciones fallan
+        if not uri:
+            raise ValueError("No se encontró la variable MONGODB_URI en st.secrets ni en el entorno.")
+
         client = pymongo.MongoClient(uri)
         # Seleccionamos la base de datos y la colección
         db = client["ml_describer_db"]
         return db["analisis_historial"]
+        
     except Exception as e:
         st.error(f"❌ Error al conectar con MongoDB: {e}")
         st.stop()
@@ -33,10 +42,17 @@ coleccion_historial = init_mongo_connection()
 # =======================
 with st.sidebar:
     st.header("🔑 Configuración")
+    
+    # Intenta leer la API Key con la misma estrategia híbrida
     try:
         api_key = st.secrets["google_api_key"]
+    except Exception:
+        api_key = os.environ.get("STREAMLIT_GOOGLE_API_KEY")
+
+    # Validamos si logramos rescatar la API Key
+    if api_key:
         st.success("API Key e infraestructura cargadas correctamente.")
-    except KeyError:
+    else:
         st.error("❌ Faltan las variables de entorno (GOOGLE_API_KEY).")
         st.stop()
     
